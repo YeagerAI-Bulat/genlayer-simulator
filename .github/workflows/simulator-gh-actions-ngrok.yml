@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  load-test:
+  simulator-ngrok:
     runs-on: ubuntu-latest
 
     steps:
@@ -40,7 +40,7 @@ jobs:
             ${{ runner.os }}-buildx-
 
       - name: Run Docker Compose
-        run: docker compose up -d
+        run: docker compose up -d --parallel
 
       - name: Wait for services to be up
         run: |
