@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useContractQueries } from '@/hooks/useContractQueries';
+import { useContractQueries } from '@/hooks';
 import { computed } from 'vue';
 import PageSection from '@/components/Simulator/PageSection.vue';
 import { type ContractMethod } from '@/types';
@@ -24,13 +24,7 @@ const readMethods = computed(() => {
       <Loader v-if="isRefetching" :size="14" />
     </template>
 
-    <div
-      v-if="isPending"
-      class="flex flex-row items-center justify-center gap-2 p-1"
-    >
-      <Loader />
-      Loading...
-    </div>
+    <ContentLoader v-if="isPending" />
 
     <Alert v-else-if="isError" error>
       {{ error?.message }}

@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import type { ContractMethod } from '@/types';
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import { Collapse } from 'vue-collapsed';
-import { InputTypesMap } from '@/utils';
-import { useContractQueries } from '@/hooks/useContractQueries';
+import { useInputMap } from '@/hooks';
 import { notify } from '@kyvg/vue3-notification';
 import { ChevronDownIcon } from '@heroicons/vue/16/solid';
-import { useEventTracking } from '@/hooks';
+import { useEventTracking, useContractQueries } from '@/hooks';
 
 const { callWriteMethod, callReadMethod, contract } = useContractQueries();
 const { trackEvent } = useEventTracking();
+
+const inputMap = useInputMap();
 
 const props = defineProps<{
   method: ContractMethod;
@@ -19,6 +20,12 @@ const props = defineProps<{
 const isExpanded = ref(false);
 const inputs = ref<{ [k: string]: any }>({});
 const responseMessage = ref('');
+
+const missingParams = computed(() => {
+  return props.method.inputs.some(
+    (input: any) => inputs.value[input.name] === '',
+  );
+});
 
 const handleCallReadMethod = async () => {
   responseMessage.value = '';
@@ -116,7 +123,7 @@ onMounted(() => {
         <component
           v-for="input in method.inputs"
           :key="input.name"
-          :is="InputTypesMap[input.type]"
+          :is="inputMap.getComponent(input.type)"
           v-model="inputs[input.name]"
           :name="String(input.name)"
           :label="String(input.name)"
@@ -129,6 +136,8 @@ onMounted(() => {
             @click="handleCallReadMethod"
             tiny
             :data-testid="`read-method-btn-${method.name}`"
+            :disabled="missingParams"
+            v-tooltip="missingParams ? 'All parameters are required' : ''"
             >Call Contract</Btn
           >
 

@@ -6,7 +6,7 @@ import time
 from dotenv import load_dotenv
 from eth_account import Account
 
-from tests.common.transactions import construct_signed_transaction
+from tests.common.transactions import sign_transaction, encode_transaction_data
 
 load_dotenv()
 
@@ -44,12 +44,31 @@ def get_transaction_by_id(transaction_id: str):
 
 
 def call_contract_method(
-    account: Account, contract_address: str, method_name: str, method_args: list
+    contract_address: str,
+    from_account: Account,
+    method_name: str,
+    method_args: list,
 ):
-    call_data = [method_name, json.dumps(method_args)]
-    signed_transaction = construct_signed_transaction(
-        account, call_data, contract_address
+    params_as_string = json.dumps(method_args)
+    encoded_data = encode_transaction_data([method_name, params_as_string])
+    return post_request_localhost(
+        payload("call", contract_address, from_account.address, encoded_data)
+    ).json()
+
+
+def send_transaction(
+    account: Account,
+    contract_address: str,
+    method_name: str,
+    method_args: list,
+    value: int = 0,
+):
+    call_data = (
+        None
+        if method_name is None and method_args is None
+        else [method_name, json.dumps(method_args)]
     )
+    signed_transaction = sign_transaction(account, call_data, contract_address, value)
     return send_raw_transaction(signed_transaction)
 
 
@@ -57,13 +76,11 @@ def deploy_intelligent_contract(
     account: Account, contract_code: str, constructor_params: str
 ):
     deploy_data = [contract_code, constructor_params]
-    signed_transaction = construct_signed_transaction(account, deploy_data)
+    signed_transaction = sign_transaction(account, deploy_data)
     return send_raw_transaction(signed_transaction)
 
 
-def send_raw_transaction(
-    signed_transaction: str, interval: int = 10, retries: int = 15
-):
+def send_raw_transaction(signed_transaction: str):
     payload_data = payload("send_raw_transaction", signed_transaction)
     raw_response = post_request_localhost(payload_data)
     call_method_response = raw_response.json()
@@ -71,12 +88,17 @@ def send_raw_transaction(
         raise ValueError("No result found in the call_method_response")
     transaction_id = call_method_response["result"]["data"]["transaction_id"]
 
+    transaction_response = wait_for_transaction(transaction_id)
+    return (call_method_response, transaction_response)
+
+
+def wait_for_transaction(transaction_id: str, interval: int = 10, retries: int = 15):
     attempts = 0
     while attempts < retries:
         transaction_response = get_transaction_by_id(str(transaction_id))
         status = transaction_response["result"]["data"]["status"]
         if status == "FINALIZED":
-            return (call_method_response, transaction_response)
+            return transaction_response
         time.sleep(interval)
         attempts += 1
 

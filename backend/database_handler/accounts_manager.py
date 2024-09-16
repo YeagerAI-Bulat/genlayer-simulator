@@ -1,88 +1,72 @@
 # consensus/services/transactions_db_service.py
 
-import json
-from enum import Enum
 from eth_account import Account
 from eth_account._utils.validation import is_valid_address
 
-from backend.database_handler.db_client import DBClient
+from .models import CurrentState
 from backend.database_handler.errors import AccountNotFoundError
-from backend.database_handler.transactions_processor import TransactionsProcessor
+
+from sqlalchemy.orm import Session
 
 
 class AccountsManager:
-    def __init__(
-        self, db_client: DBClient, transactions_processor: TransactionsProcessor
-    ):
-        self.db_client = db_client
-        self.transactions_processor = transactions_processor
-        self.db_accounts_table = "current_state"
+    def __init__(self, session: Session):
+        self.session = session
 
-    def _parse_account_data(self, account_data: dict) -> dict:
+    def _parse_account_data(self, account_data: CurrentState) -> dict:
         return {
-            "id": account_data["id"],
-            "data": account_data["data"],
-            "updated_at": account_data["updated_at"].isoformat(),
+            "id": account_data.id,
+            "data": account_data.data,
+            "balance": account_data.balance,
+            "updated_at": account_data.updated_at.isoformat(),
         }
 
-    def create_new_account(self, balance: int = 0) -> Account:
+    def create_new_account(self) -> Account:
         """
-        Used when generating intelligent contract's accounts or dending funds to a new account.
+        Used when generating intelligent contract's accounts or sending funds to a new account.
         Users should create their accounts client-side
         """
         account = Account.create()
-        self.register_new_account(account.address, balance)
+        self.create_new_account_with_address(account.address)
         return account
+
+    def create_new_account_with_address(self, address: str):
+        if not self.is_valid_address(address):
+            raise ValueError(f"Invalid address: {address}")
+        account_state = CurrentState(id=address, data={})
+        self.session.add(account_state)
+        self.session.commit()
 
     def is_valid_address(self, address: str) -> bool:
         return is_valid_address(address)
 
-    def get_account(self, account_address: str):
-        """Private method to retrieve if an account from the data base"""
-        condition = f"id = '{account_address}'"
-        account_data = self.db_client.get(self.db_accounts_table, condition)
-        return self._parse_account_data(account_data[0]) if account_data else None
+    def get_account(self, account_address: str) -> CurrentState | None:
+        """Private method to retrieve an account from the data base"""
+        account = (
+            self.session.query(CurrentState)
+            .filter(CurrentState.id == account_address)
+            .one_or_none()
+        )
+        return account
 
-    def get_account_or_fail(self, account_address: str):
+    def get_account_or_fail(self, account_address: str) -> dict:
         """Private method to check if an account exists, and raise an error if not."""
         account_data = self.get_account(account_address)
         if not account_data:
             raise AccountNotFoundError(
                 account_address, f"Account {account_address} does not exist."
             )
-        return account_data
+        return self._parse_account_data(account_data)
 
-    def register_new_account(self, address: str, balance: int) -> None:
-        account_state = {
-            "id": address,
-            "data": json.dumps({"balance": balance}),
-        }
-        self.db_client.insert(self.db_accounts_table, account_state)
+    def get_account_balance(self, account_address: str) -> int:
+        account = self.get_account(account_address)
+        if not account:
+            return 0
+        return account.balance
 
-    def fund_account(self, account_address: str, amount: int):
-        # account creation or balance update
-        account_data = self.get_account(account_address)
-        if account_data:
-            # Account exists, update it
-            update_condition = f"id = {account_address}"
-            new_balance = account_data["data"]["balance"] + amount
-            updated_account_state = {
-                "data": json.dumps({"balance": new_balance}),
-            }
-
-            self.db_client.update(
-                self.db_accounts_table, updated_account_state, update_condition
-            )
-        else:
-            # Account doesn't exist, create it
-            self.create_new_account(account_address, amount)
-
-        # Record transaction
-        transaction_data = {
-            "from_address": "NULL",
-            "to_address": account_address,
-            "data": json.dumps({"action": "fund_account", "amount": amount}),
-            "value": amount,
-            "type": 0,
-        }
-        self.transactions_processor.insert_transaction(**transaction_data)
+    def update_account_balance(self, account_address: str, new_balance: int):
+        to_account = self.get_account(account_address)
+        if to_account is None:
+            self.create_new_account_with_address(account_address)
+            to_account = self.get_account(account_address)
+        to_account.balance = new_balance
