@@ -42,6 +42,7 @@ from backend.protocol_rpc.server import (
 )
 from functools import wraps
 
+
 def collect_metrics(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -484,3 +485,4 @@ def register_all_rpc_endpoints(
         transactions_processor,
         accounts_manager,
     )
+

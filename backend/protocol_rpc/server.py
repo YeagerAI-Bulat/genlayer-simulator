@@ -102,7 +102,8 @@ register_all_rpc_endpoints(
 )
 
 
-@app.route('/metrics')
+@app.route("/metrics")
+
 def metrics():
     return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
 
