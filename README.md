@@ -9,20 +9,20 @@ This Simulator is an interactive sandbox designed for developers to explore the 
 ## Prerequisites
 Before installing the GenLayer CLI, ensure you have the following prerequisites installed:
 
-- [Docker](https://docs.docker.com/engine/install/): Required to run the GenLayer environment. **Required version**: Docker 26+
-- [Node.js and npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm/): Needed for the GenLayer CLI tool. **Required version**: Node.js 18+
+-  Docker: [Required to run the GenLayer environment. **Required version**: Docker 26+](https://get.docker.com/)
 
 ## 🛠️ Installation and usage
 
 ```
-$ npm install -g genlayer
-$ genlayer init
+$ mv .env.example .env
+$ docker compose up -d
+$ open frontend in web browser http://localhost:8080
 ```
 
-To run genlayer again just run:
+To rebuild docker containers run genlayer simulator again just run:
 
 ```
-$ genlayer up
+$ docker compose down && docker compose up -d
 ```
 After executing those commands a new tab will open in your browser with the GenLayer Simulator. Additional installation instructions can be found [here](https://docs.genlayer.com/simulator/installation)
 
