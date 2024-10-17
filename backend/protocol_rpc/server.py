@@ -13,6 +13,7 @@ from backend.protocol_rpc.configuration import GlobalConfiguration
 from backend.protocol_rpc.message_handler.base import MessageHandler
 from backend.protocol_rpc.endpoints import register_all_rpc_endpoints
 from dotenv import load_dotenv
+from prometheus_client import Counter, Gauge, Histogram, generate_latest, CONTENT_TYPE_LATEST
 
 from backend.database_handler.db_client import DBClient, get_db_name
 from backend.database_handler.transactions_processor import TransactionsProcessor
@@ -37,6 +38,11 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = db_uri
     app.config["SQLALCHEMY_ECHO"] = True
     sqlalchemy_db.init_app(app)
+
+    # Initialize Prometheus metrics
+    REQUEST_COUNT = Counter('rpc_server_requests_total', 'Total number of RPC requests', ['method'])
+    ACTIVE_CONNECTIONS = Gauge('rpc_server_active_connections', 'Current number of active connections')
+    REQUEST_DURATION = Histogram('rpc_server_request_duration_seconds', 'Duration of RPC requests', ['method'])
 
     CORS(app, resources={r"/api/*": {"origins": "*"}}, intercept_exceptions=False)
     jsonrpc = JSONRPC(app, "/api", enable_web_browsable_api=True)
@@ -82,6 +88,11 @@ register_all_rpc_endpoints(
     validators_registry,
     config=GlobalConfiguration(),
 )
+
+
+@app.route('/metrics')
+def metrics():
+    return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
 
 
 def run_socketio():
