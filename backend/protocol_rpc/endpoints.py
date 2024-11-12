@@ -35,6 +35,28 @@ from backend.database_handler.transactions_processor import TransactionsProcesso
 from backend.node.base import Node
 from backend.node.genvm.types import ExecutionMode
 
+from backend.protocol_rpc.server import (
+    REQUEST_COUNT,
+    ACTIVE_CONNECTIONS,
+    REQUEST_DURATION,
+)
+from functools import wraps
+
+
+def collect_metrics(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        method_name = func.__name__
+        REQUEST_COUNT.labels(method=method_name).inc()
+        with REQUEST_DURATION.labels(method=method_name).time():
+            ACTIVE_CONNECTIONS.inc()
+            try:
+                return func(*args, **kwargs)
+            finally:
+                ACTIVE_CONNECTIONS.dec()
+
+    return wrapper
+
 
 ####### HELPER ENDPOINTS #######
 def ping() -> dict:
@@ -387,43 +409,80 @@ def register_all_rpc_endpoints(
         generate_rpc_endpoint_for_partial, register_rpc_endpoint
     )
 
-    register_rpc_endpoint(ping)
+    register_rpc_endpoint(collect_metrics(ping))
     register_rpc_endpoint_for_partial(
-        clear_db_tables, genlayer_db_client, ["current_state", "transactions"]
-    )
-
-    register_rpc_endpoint_for_partial(get_balance, accounts_manager)
-    register_rpc_endpoint_for_partial(
-        fund_account, accounts_manager, transactions_processor
+        collect_metrics(clear_db_tables),
+        genlayer_db_client,
+        ["current_state", "transactions"],
     )
 
     register_rpc_endpoint_for_partial(
-        get_contract_schema, accounts_manager, msg_handler
+        collect_metrics(get_balance), accounts_manager
     )
-    register_rpc_endpoint_for_partial(get_contract_schema_for_code, msg_handler)
+    register_rpc_endpoint_for_partial(
+        collect_metrics(fund_account),
+        accounts_manager,
+        transactions_processor,
+    )
 
-    register_rpc_endpoint_for_partial(get_providers_and_models, config)
     register_rpc_endpoint_for_partial(
-        create_validator, validators_registry, accounts_manager
+        collect_metrics(get_contract_schema),
+        accounts_manager,
+        msg_handler,
     )
     register_rpc_endpoint_for_partial(
-        create_random_validator, validators_registry, accounts_manager, config
+        collect_metrics(get_contract_schema_for_code), msg_handler
     )
-    register_rpc_endpoint_for_partial(
-        create_random_validators, validators_registry, accounts_manager, config
-    )
-    register_rpc_endpoint_for_partial(
-        update_validator, validators_registry, accounts_manager
-    )
-    register_rpc_endpoint_for_partial(
-        delete_validator, validators_registry, accounts_manager
-    )
-    register_rpc_endpoint_for_partial(delete_all_validators, validators_registry)
-    register_rpc_endpoint_for_partial(get_all_validators, validators_registry)
-    register_rpc_endpoint_for_partial(get_validator, validators_registry)
 
-    register_rpc_endpoint_for_partial(get_transaction_by_id, transactions_processor)
-    register_rpc_endpoint_for_partial(call, accounts_manager, msg_handler)
     register_rpc_endpoint_for_partial(
-        send_raw_transaction, transactions_processor, accounts_manager
+        collect_metrics(get_providers_and_models), config
     )
+    register_rpc_endpoint_for_partial(
+        collect_metrics(create_validator),
+        validators_registry,
+        accounts_manager,
+    )
+    register_rpc_endpoint_for_partial(
+        collect_metrics(create_random_validator),
+        validators_registry,
+        accounts_manager,
+        config,
+    )
+    register_rpc_endpoint_for_partial(
+        collect_metrics(create_random_validators),
+        validators_registry,
+        accounts_manager,
+        config,
+    )
+    register_rpc_endpoint_for_partial(
+        collect_metrics(update_validator),
+        validators_registry,
+        accounts_manager,
+    )
+    register_rpc_endpoint_for_partial(
+        collect_metrics(delete_validator),
+        validators_registry,
+        accounts_manager,
+    )
+    register_rpc_endpoint_for_partial(
+        collect_metrics(delete_all_validators), validators_registry
+    )
+    register_rpc_endpoint_for_partial(
+        collect_metrics(get_all_validators), validators_registry
+    )
+    register_rpc_endpoint_for_partial(
+        collect_metrics(get_validator), validators_registry
+    )
+
+    register_rpc_endpoint_for_partial(
+        collect_metrics(get_transaction_by_id), transactions_processor
+    )
+    register_rpc_endpoint_for_partial(
+        collect_metrics(call), accounts_manager, msg_handler
+    )
+    register_rpc_endpoint_for_partial(
+        collect_metrics(send_raw_transaction),
+        transactions_processor,
+        accounts_manager,
+    )
+
