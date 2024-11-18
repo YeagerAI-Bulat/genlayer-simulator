@@ -8,6 +8,13 @@ on:
 permissions:
   contents: read
 
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+
 jobs:
   jsonrpc:
     uses: ./.github/workflows/docker-build-and-push-image.yml
@@ -26,6 +33,7 @@ jobs:
       dockerfile: docker/Dockerfile.frontend
       dockerhub_repo: yeagerai/simulator-frontend
       dockerhub_username: ${{ vars.DOCKERHUB_USERNAME }}
+      version: ${{ inputs.version }}
     secrets:
       dockerhub_token: ${{ secrets.DOCKERHUB_TOKEN }}
 

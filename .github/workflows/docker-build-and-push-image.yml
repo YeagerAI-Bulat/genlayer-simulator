@@ -57,6 +57,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Read version
+        id: get_version
+        run: echo "VERSION=$(cat version.txt)" >> $GITHUB_ENV
+
       # jsonrpc
       - name: Docker Metadata
         id: meta
@@ -66,6 +70,7 @@ jobs:
             ${{ inputs.dockerhub_repo }}
           tags: |
             type=ref,event=tag
+            type=env,variable=VERSION
             type=raw,value=latest
 
       - name: Build and push
