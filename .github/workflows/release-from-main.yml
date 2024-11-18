@@ -33,3 +33,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release # Uses `release.config.js` for configuration
+
+      - name: Trigger Docker Build
+        uses: ./.github/workflows/docker-build-and-push-all.yml
+        with:
+          version: ${{ steps.get_version.outputs.VERSION }}
+        secrets:
+          dockerhub_token: ${{ secrets.DOCKERHUB_TOKEN }}
