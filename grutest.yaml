@@ -1,0 +1,18 @@
+version: "0.1"
+
+global:
+  setup:
+    - pip install -r backend/protocol_rpc/requirements.txt
+    - pip install pytest-cov
+
+pipeline:
+  runTest:
+    exec:
+      - pytest tests/unit --cov=backend --cov-report=xml --cov-branch
+    settings:
+      include:
+        - backend
+      testPlacementStrategies:
+        - type: directory
+          testDir: tests/unit
+          testFilePattern: "test_{{sourceFileName}}.py"
