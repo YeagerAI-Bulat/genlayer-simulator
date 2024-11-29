@@ -1,18 +1,21 @@
+# Frontend only
 version: "0.1"
 
 global:
   setup:
-    - pip install -r backend/protocol_rpc/requirements.txt
-    - pip install pytest-cov
-
+    - npm ci
+    - cp -r examples frontend/src/assets/examples
 pipeline:
   runTest:
     exec:
-      - pytest tests/unit --cov=backend --cov-report=xml --cov-branch
+      - npm run coverage
     settings:
-      include:
-        - backend
-      testPlacementStrategies:
-        - type: directory
-          testDir: tests/unit
-          testFilePattern: "test_{{sourceFileName}}.py"
+      workingDir: frontend
+settings:
+  exportFunctionOrClass: allow
+  include:
+      - frontend
+  # Location of the test files
+  testPlacementStrategies:
+    - type: centralized
+      testFilePattern: "{{sourceFileName}}.ts"
